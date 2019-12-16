@@ -1,0 +1,1408 @@
+---
+title: "BST260 Project: Assessing Hospice Quality and Financial Performance using Public Medicare Data"
+author: "Mustafa Bulbul, Carl Ceraolo, and Timothy Genovese" 
+date: "12/15/2019"
+output:
+  rmarkdown::html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview and Motivation: 
+### Provide an overview of the project goals and the motivation for it. Consider that this will be read by people who did not see your project proposal.
+
+Hospices are healthcare institutions that provide specialized end-of-life care to patients with a variety of diagnoses. Hospice is generally thought of as a cost-effective and compassionate way of providing end-of-life care that is underutilized in healthcare, in part because of the difficulty of discussing and planning for death. In general, a patient is only eligible for Hospice services if their prognosis portends six months or fewer of survival. They also typically need to have advanced directives stipulating that the patient refuses invasive life-saving measures such as cardiopulmonary resuscitation (CPR), intubation (breathing tube), or parenteral feeding (iv nutrition), and they cannot be using any therapies for curative intent, such as chemotherapy, while in hospice. These requirements for hospice eligibility can complicate the decision to enter hospice when the prognosis is not clearly undertsood or communicated, the patient's goals of care are not clear, or the patient's care preferences are at odds with eligibility requirements.  
+
+Hospices have been increasing in popularity in America, and the number of hospices and utilization rates have grown consistently in recent decades. Amid the climate of growing and new hospices is the ever-present need to negotiate and re-negotiate payment. Hopsices and payers (Medicare, Medicaid, Medicare Advantage, private insurance companies, etc) each have the power to negotiate reimbursement rates for services provided. Recently, there has been much controversy about new negotations between Medicare Advantage and hospices. There is growing possibility that hospices may be required to negotiate reimbursement contracts with Medicare Advantage, and that Medicare Advantage will be able to negotiate with different hospice facilities to selectively contract with those that are cheapest, potentially at the cost of quality. 
+
+In light of the Medicare Advantage controversy, we were interested in learning more about hospice performance and the variability of hospice quality and costs. Specifically,  we were interested in visualizing the distributions of quality and cost measures in available hospice data, and then studying which factors were associated with costs and quality. Our results could help predict a model for how a hospice might “cherry pick” for inexpensive patients or an insurance company for inexpensive hospices. It might also help predict which types of patients would be most affected by preferential hospice contracting. Furthermore, we wanted to see if these same factors were associated with other inefficiencies or burdens on the hospice as well as the hospice quality.
+
+
+# Related Work: 
+### Anything that inspired you, such as a paper, a web site, or something we discussed in class.
+
+For our project, we wanted to better visualize healthcare-related information using our new visualization skills in R. We thought that hospice data would be relevant to each of our clinical interests (head & neck cancer, urology, rehabilitation) as well as to public health. We were interesting in determining which factors might be related to hospice costs, qualities, or inefficiencies in utilization in part due to the availability of public data and in part due to interest in learning more about hospice finance. with the growing utilization of hospices in the U.S., there has been recent controversy about insurance companies selectively negotiation contracts with hopsices in order to select only cheaper hospices, which might result in poorer quality of hospice care for beneficiaries. 
+
+An article on Medicare Advantage negotiations with hospice:  
+http://aahpm.org/uploads/advocacy/AAHPM_Comments-CMS-1714-P_FY20_Hospice_Wage_Index__Quality_Reporting_06-18-19.pdf
+
+
+# Initial Questions: 
+## What questions are you trying to answer? How did these questions evolve over the course of the project? What new questions did you consider in the course of your analysis?
+
+We were interested in learning more about hospices and hospice performance. Specifically, we decided to learn what factors affect the performance in terms of finances, administrative inefficiencies, and quality. We arrived at these targetting these aspects of hospice performance on the basis of the availability of data on the Medicare webiste. Other types of perfomance that we had considered examining included survival rates and medication utilization at hospice facilities, but our search for publicly available data was less successful for these topics. We generally limited our searches to publicly available Medicare data due to the quality and completeness of Medicare data compared to other healthcare data sources such as private organizations and single institutions, as well as time constraints for data access. The data we found were still interesting because we were able access quality and cost data, and to create and measure our own measures of inefficiency: 
+
+1. Medicare Return Rate -- the ratio of the amount of money that the hospice charges Medicare as reimbursement for care provided that year, to the amount of money that Medicare pays to the hospice for care provided that year. We interpreted this number as a measure of the financial efficiency of the hospice but also the competitiveness of the hospice's Medicare contract (a lower return rate could be caused by inefficient billing practices, changes in service mix, and more competitive price negotiation by Medicare). 
+
+2. Live Discharge Rate per 1000 Beneficiaries -- the total number of live discharges from the hospice that year divided by the total number of beneficiaries that year. This measures the number of patients who did not die in hospice as is generally expected. A live discharge could occur because the patient's health did not decline quickly enough to warrant hospice care, or they could be transferred out due to care preferences or changes in hospice eligibility. We suspected the live discharge rate would be highly related to poor patient preparation/selection for hospice placement (for example, poor communication of expected disease course) and could be used to represent an expense for the hospice. So, we interpreted the live discharge rate as a measure of inefficiency for the hospice without concern for the exact reason for discharge. 
+
+We also used them data to make comparisons by state, which was an option we intially explored that ended up being uninteresting by itself. We decided to incorporate additional data using the state value to code hopsices by region and by Medicaid expansion participation as of July 2016 (Source: Medicaid.Gov "Medicaid Expansion State Map as of July 2016"). We investigated these, as well as the informaiton on patient demographics, primary diagnoses, length of stay, and care setting, as predictors in our final regression analyses. We ultimately built multivariable linear regression models to determine which of our predictors were associated with: 
+
+1. The total Medicare reimbrusement to the hospice for that year per beneficiary-day served. 
+2. The ratio of the Medicare reimbursement to the hospice compared to the charges to Medicare by the hospice.  
+3. The rate of live discharges out of the hospice relative to total beneficiaries served.  
+4. The percentage of patient survey respondents rating the hospice 9+/10.  
+5. The percentage of patient survey respondents stating the patient's pain and other symptoms were always well-controlled.  
+6. The percentage of patient survey respondents stating the hospice staff provided emotional support to the patient and/or family. 
+
+
+# Data: 
+### Source, scraping method, cleanup, etc.
+
+We obtained our main set of data as two Excel files downloaded directly from the Medicare website. The links are: 
+
+[Provider Data](https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-Trends-and-Reports/Medicare-Provider-Charge-Data/Hospice): - https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-Trends-and-Reports/Medicare-Provider-Charge-Data/Hospice
+
+[Quality Data](https://data.medicare.gov/Hospice-Compare/Hospice-Compare-National-CAHPS-Hospice-Survey-Data/7cv8-v37d): - https://data.medicare.gov/Hospice-Compare/Hospice-Compare-National-CAHPS-Hospice-Survey-Data/7cv8-v37d
+
+In brief, the data files contains data from over 4,000 American hospice facilities in the year 2017. The data were collected directly from the hospices as a part of the Agency for Healthcare Research and Quality's (AHRQ) Consumer Assessment of Healthcare Providers and Systems (CAHPS) program. The data specifically capture the following hospice chartacteristics:
+
+Hospice:  
+- Name  
+- Address  
+- State  
+- City  
+- ZIP  
+
+Quality:  
+- Overall Rating  
+- Overall Recommendation  
+- Pain/Symptom Management  
+- Communication  
+- Displayed Respect  
+- Helped the Patient/Family  
+- Provided Emotional Support  
+- Patient/Family Training  
+
+Cost:  
+- Medicare Reimbursement  
+- Medicare Standard Reimbursement  
+- Medicare Charge  
+
+Patients:  
+- Total Beneficiaries  
+- Total Beneficiary-Days  
+- Total Live Discharges  
+
+Demographics (number of patients, except age):  
+- Average Age  
+- Sex  
+- Race  
+- Medicaid-Enrolled  
+- Medicare Advantage-Enrolled  
+
+Length of Stay (number of patients):  
+- Number Staying Less than 7 Days  
+- Number Staying More than 60 Days  
+- Number Staying More than 180 Days  
+
+Primary Diagnosis (number of patients):  
+- Cancer  
+- Stroke  
+- Dementia  
+- Cardiac Disease  
+- Pulmonary Disease  
+- Other Primary Diagnosis  
+
+Services Provided (average hours per week in general as well as in week prior to death):  
+- Home Health  
+- Skilled Nursing  
+- Social Services  
+
+Care Setting (number receving majority of their care in setting):  
+- Home Care  
+- Assisted Living Facility  
+- Non-Skilled Nursing Facility  
+- Skilled Nursing Facility  
+- Inpatient Hospice  
+- Inpatient Hospital  
+
+The code for our data processing method is described here and presented on a new page after the written report. The overall goal of the data wrangling component of our project is to be able to yield a dataframe that can be directly analyzed. We started with two different Excel data files that have observations for the same hospices but the variables are laid out in different arrangements on the two sheets. 
+
+We started by reading the Excel files in as two separate dataframes, the provider data which had the preferred layout, and the quality data. In the quality dataset, each hospice occupied 25 rows and the scores of interest were all contained in one column. We ideally would have spread the data, but there were multiple non-unqiue identifiers so we first separated one column of redundant identifiers with the scores. We were not concerned about losing the other columns because they were also contained in the provider dataset. The spread quality datatset had the correct variables, but the hospices were the columns and the measures were rows. We rotated this dataframe 90 degrees by transposing the data, then we had to move the rownames to the first column to recreate the identifier variable and deleted an extraneous column of NA's that came from the format of the original quality dataframe. We were then able to join the two datasets using the merge function and keeping all observations from both dataframes in order to minimize the number of rows (hospices) lost in the merge. 
+
+The possibility of mismatches introduced the potential that we generated many new cells with missing values, but we addressed this in the quality control phase. The two data files formatted their missing values differently, so we first replaced both "Not Available" and "*" with NA so we were confident in our ability to correctly identify missing values. We then filtered out rows (hospices) and columns (variables) with more than 35% of their values as NA. We performed this in a stepwise fashion, first filtering the rows and then the columns, because of our choice to keep all observations in the merge. The dataframes were approximately equal in length, so setting the filter at >=35% would successfully eliminate these mismatched rows with many "NA" values as well as true matches that were of low reporting quality. The variables dropped were the race categories and other-site and other-care setting variables. We also filtered out hospices reporting 0 days of care provided to improve the quality of our data and avoid computational problems when dividing by total days. We also retroactively filtered out hospices reporting over 100,000 days of care provided after conducting our analyses because we noticed that Vitas Healthcare was an outlier, reporting 240,000 total days of care provided vs. the next largest observation at approximately 40,000 total days. 
+
+After the quality control phase, we gave our columns simpler names for ease in analysis. We also recoded the continuous variables as numeric objects after we recieved errors during our exploratory analyses. We had to convert them one-by-one because we were not able to solve the problem by selecting multiple columns in the dataframe at once. At this point, we added additional data regarding the state variable and created new variables by performing mathematical operations on our existing data. We normalized many of our measures by converting the variable to proportions of the total beneficiary-days served because we identified many correlations >90% between our un-normalized outcomes and predictors as well as total days. This means that our measures of association would be dominated by, or confounded by, the size of the hospice. However, our data exploration also showed us that many of the different groupings of categories described by the data did not sum to the total number of beneficiaries reported, rather in many cases only to half that. When calculating normalized variables, we considered summing the categories in the group (for example, diagnoses) to yield the denominator rather than using the total beneficiaries. However, we conducted an exploratory analysis of the proportion of reported beneficiaries with a reported diagnosis and sex, and all hospices clustered about 1 indicated very good quality of entered numbers. We divided by total beneficiaries with confidence. All of our measures were numbers or averages/proportions of category counts aross hospices, so we analyzed all of our data as continuous variables except for the variables derived from the state value.  
+
+
+# Exploratory Analysis: 
+### What visualizations did you use to look at your data in different ways? What are the different statistical methods you considered? Justify the decisions you made, and show any major changes to your ideas. How did you reach these conclusions?
+
+To begin our analysis, we examined the distributions of outcomes and predictors for normality, skew, modes, overall shape, and outliers using histograms. In general, we were not suprised by the results. The variables generally followed either a normal distribution or a right-skewed unimodal distribution according to our expectations. In this step, we deduced that there was a right skew in the distribution of general size of the hospices, indicated by right skew in the distributions for total benficiaries, total days, total payments, etc. As a result, we combed through values all of our variables considering them for normalization to the total beneficiaries or total days as appropriate for our interpretation. We noticed the Vitas Healthcare outlier as previously discussed and implemented an expanded filter in the quality control phase. 
+
+We also noticed that each of the quality measures was coded in three tiers/scores, with generally over 80% of responses rating the hospice with the high score. We decided to analyze the quality outcomes as the proportion of respodents rating the hospice in the high tier, which is a continuous variable ranging from 0 to 100. We did not include the other two tiers in the analysis, which was a more simple approach that came at the cost of losing the informaiton encoded by the difference in magnitude between middle-score and low-score responses. The quality scores were so high that we suspected the middle-sore and low-sore variables would be uninformative, so we had little concern dropping the other two variables.
+
+We also conducted a post-hoc data quality analysis by calculating the sum of primary diagnoses divided by the total beneficiaries and plotting this ratio for each hospice on a histogram. We repeated this method with sum of males and females to calculate the ratio of beneficiaries with a reported sex. For both plots, there was only one bar centered on 1, indicating the hospices all reported diagnoses and sexes for all their beneficiaries and the quality of the recorded numbers was likely to be good. 
+
+Next, we explored the data in scatterplots for univariable associations. The scatterplots that we explored  while we were exploring the data prior to regression remain embedded in the shiny app created in the shiny app, although the variables in the dataset were dropped from the shiny app after we determined the associations to be uninteresting in the satterplot or regression steps of the analysis. We generally selected variables to investigate more closely based on our ability to account for the relationship displayed in the scatterplots/boxplots using our theoretical understanding of the content matter, both for relartionships that appeared as expected or opposite our expectations. 
+
+To determine how many variables might be approriate to investigate for final models for in the regression phase, we created a matrix of partial correlations between our continuous variables; this helped determine if there are pairwise groupings of variables that should not be entered simulataneously as predictors in the regression equations as well as the relatedness of the quality measures to each other. We found that there were many high correlations >70% between the quality measures as well as between the payment measures, indicating we would probably make many redundant models if we tried to model each individual outcome measure. We planned to make final models for three cost/efficiency measures and no more than half of the quality measures (half of eight), while being open to the possibility of more interesting relationships appearing in the multivariable regression step. 
+
+We then conducted exploratory multivariable linear regression using the "kitchen sink" method, meaning we began with a large array of predictors to create highly-fitted models for the outcomes of interest. We then used manual backwards selection to identify interesting associations between our predictors and the outcomes by removing the large majority of the non-significant variables in the first step and then making one-variable adjustments to the model to see if associations changed from the "kitchen sink" models. We did not examine the variables exhaustively as we suspected that the dataset did not include many important covariates that we would have liked to have included and we were not trying to capture the total variation in hospice measures (rather, interesting associations only). We arrived at the final regression models by applying backward selection to the "kitchen sink" models in the order that they yielded interesting results, and ultimately examined each model in more detail before deciding to report three efficiency/cost measures and three quality measures with interesting multivariable linear models. 
+
+
+# Final Analysis: 
+### What did you learn about the data? How did you answer the questions? How can you justify your answers?
+
+Above in the exploratory analysis section, we described our findings as we examined the data. Here, we describe the results and conclusions of our final regression analyses as well as interesting correlations with the visualizations in our Shiny app. 
+
+For our final regression analysis, we used multivariable linear regression to determine which of our predictors were associated with our outcomes of interest. We specifically asked: for American hospices, what factors are related to:
+
+1. The total Medicaere reimbrusement to the hospice for that year per beneficiary-day served? 
+
+2. The ratio of the Medicare reimbursement to the hospice compared to the charges to Medicare by the hospice? 
+
+3. The rate of live discharges out of the hospice relative to total beneficiaries served? 
+
+4. The percentage of patient survey respondents rating the hospice 9+/10? 
+
+5. The percentage of patient survey respondents stating the patient's pain and other symptoms were always well-controlled? 
+
+6. The percentage of patient survey respondents stating the hospice staff provided emotional support to the patient and/or family? 
+
+For each of these outcomes of interest, we first entered the range of predictors listed above in the data section, and then applied the manual backward selection method descirbed in the exploratory analysis section to yield the final models reported. 
+
+\newpage
+## Medicare Reimbursement and Return Rate (Figures 1 + 2)
+![Multivariable Linear Regression Model Predicting Hospice Medicare Reimbursement per Beneficiary-Day.]("/Users/timgenovese/Desktop/Code for BST260 Project/paymentpng.png")
+
+
+![Multivariable Linear Regression Model Predicting Hospice Ratio of Medicare Charges Received in Reimbursement.]("http://timgenovese.github.io/BST260FinalTGCCMB/dischargepng.pngreturnpng.png")
+
+For the final models predicting Medicare reimbursement per beneficiary-day and return rate, we included the predictors: average age, percent male, percent Medicare Advantage-enrolled, percent Medicaid-enrolled, state participated in Medicaid expansion, average LOS, average home health services per day, average skilled nursing services per day, percent of beneficiaries with a primary diagnosis of cancer, of stroke, of dementia, of heart disease, and of respiratory disease.
+
+Medicare reimbursement was significantly positively associated with older average age, higher percent male, higher percent Medicare Advantage-enrolled, lower percent Medicaid-enrolled, state particiption in Medicaid expansion, longer average LOS, higher average home health services per day, higher average skilled nursing services per day, higher percent of beneficiaries with a primary diagnosis of stroke, and lower percent of beneficiaries with a primary diagnosis of respiratory disease. It was not associated with percent of dementia patients. 
+
+Medicare return rate was significantly positively associated with higher percent Medicaid-enrolled, state particiption in Medicaid expansion, longer average length of stay, lower average home health services per day, lower average skilled nursing services per day, higher percent of beneficiaries with a primary diagnosis of stroke or dementia, and lower percent of beneficiaries with a primary diagnosis of respiratory disease. It was not associated with average age, percent male, percent Medicare Advantage-enrolled, or percent of respiratory patients. 
+
+\newpage
+## Live Discharge Rate (Figure 3)
+![Multivariable Linear Regression Model Predicting Hospice Live Discharges per 1000 Beneficiaries.]("http://timgenovese.github.io/BST260FinalTGCCMB/dischargepng.png")
+
+For the final model predicting live discharges per 1000 beneficiaries, we included the predictors: average age, percent male, located in midwest region, locatded in southrn region, percent Medicare Advantage-enrolled, percent Medicaid-enrolled, state participated in Medicaid expansion, average LOS, percent of beneficiaries staying 7 days or fewer, average social services per day in the week before death, and percent of beneficiaries with a primary diagnosis of cancer.
+
+For the live discharge rate, older age, a smaller proportion of males, location in the midwest region, a higher percent of beneficiaries staying 7 days or fewer, a longer average length of stay, more use of social services, and a higher percentage of cancer patients each showed significant negative associations. A higher proportion of Medicare Advantage-enrolled beneficiaries and a higher Medicare return rate were significantly positively associated with the live discharge rate. The percentage of males, location in the southern region, percentage of Medicaid-enrolled beneficiaries, and social service use was not significantly associated with the live discharge rate. 
+
+\newpage
+## Quality Measures (Figures 4-6)
+![Multivariable Linear Regression Model Predicting Quality Measure: Hospice Overall Rated 9+/10.]("/Users/timgenovese/Desktop/Code for BST260 Project/ratingpng.png")
+
+![Multivariable Linear Regression Model Predicting Quality Measure: Hospice Always Provided Appropriate Pain and Symptom Management.]("painpng.png")
+
+![Multivariable Linear Regression Model Predicting Quality Measure: Hopsice Staff provided Emotional Support to the Patient and/or Family.]("/Users/timgenovese/Desktop/Code for BST260 Project/a.png")
+
+For the final models predicting each of the quality outcomes, we included the predictors: average age, percent male, percent Medicare Advantage-enrolled, percent Medicaid-enrolled, state participated in Medicaid expansion, average LOS, percent of beneficiaries staying 7 days or fewer, average home health services per day in the week before death, average social services per day in the week before death, percent of beneficiaries with a primary diagnosis of cancer, of stroke, of dementia, of heart disease, and of respiratory disease.
+
+Older age was significantly associated with lower quality in the model predicting pain and symptom management but not in the models predicting overall rating or emotional support. Higher proprotion of male beneficiaries was negatively associated with each of the quality outcomes. Higher proportions of Medicare Advantage- and Medicaid-enrolled patients were each associated with lower quality scores for all three measures. A longer average length of stay and a higher proportion of patients staying 7 or fewer days were each independently associated with lower emotional support but not with overall rating or pain/symptom management. The hours per week of home health services rendered in the week per death was not associated with any of the quality outcomes; for social services there was a positive association with overall rating and emotional support but not pain/symptom management. The overall rating was negatively associated with the percent of patients with primary diagnoses of dementia or stroke, but not cancer, heart disease, or respiratory disease. The pain/symptom management rating was positively associated with the percent of patients with primary diagnoses of cancer or respiratory disease and negatively associated with primary diagnoses of stroke, but not with dementia or heart disease. The emotional support rating was negatively associated with the percent of patients with primary diagnoses of cancer, dementia, or stroke, but not with heart disease or respiratory disease. 
+
+\newpage
+## Conclusions
+Overall, our results show interesting relationships between our predictors and our cost, efficiency, and quality outcomes. Concerning the Medicare reimbursement to facilities, we found expected results for factors known to associated with healthcare cost, such as a positive association with Medicare Advantage (which reimburses more per patient/service generally) and the negative association with Medicaid (which typically reimburses less per patient), positive associaiton with new Medicaid expansion, and higher amount of skilled nursing and home health services offered. We also found that older, male, and stroke patients were the most associated with high costs after adjusting for the other factors, and we conclude that these patients would be most vulnerable to be affected by cherry-picking hospice contracts for cost savings. 
+
+For the Medicare return rate model, we found that hospices are generally getting a better rate of reimbursement per dollar that they charge to Medicare for patients with a primary diagnosis of stroke or dementia, and less for patients with primary respiratory disease. They are also receiving less of their charge for home health and skilled nursing services provided. A longer length of stay could represent greater billing efficiency over time for the same episode of care.
+
+For the live discharge rate model, we found that inefficient and burdensome changes in the plan of care are associated with younger patients, female patients, Medicare Advantage patients, patients who have a very short length of stay, and cancer patients. We believe this relationship was observed because younger patients and cancer patients are those most likely to deviate from the expected course of their disease. Patients staying less than 7 days are likely to represent patients who discharged due to facility/provider preference rather than prolonged survival beyond expected prognosis. 
+
+Based on our quality measure models, we suggest that there are general factors associated with positive quality performance -- fewer males, fewer Medicaid and Medicare Advantage patients, longer average length of stay, more social services provided, and fewer stroke or dementia patients. Additionally, older patients were associated with worse pain/symptom control even after controlling for diagnoses that may affect communication of medical needs, such as stroke or dementia, representing an independent risk factor. The pain/symptom score was signficantly associated with cancer and respiratory patients; these patients typically have many standardized care protocols (cancer-associated opioid protocols and routine care for ventilator-dependent patients) these protocols, or the general preparedness of staff at these facilities, may account for these observed relationships. 
+
+We provide evidence that there may already be some selective negotation of contracts between insurers and hospice. Medicare Advantage and Medicaid enrollees are associated with lower quality measures, while Medicaid is associated with lower reimbursement and Medicare Advantage is associated with higher reimbursement. However, Medicare Advantage is also associated with live discharges, and it is possible that the association with increased reimbursement is in part accounted for by waste/inefficiency. Selective contracting between insurance companies and hospices should already be a concern, and we suspect the hospices most at-risk to be harmed by financial pressures. 
+
+## References
+
+1. “Legacy Medicare Provider Utilization and Payment Data: Hospice Providers.” CMS, https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-Trends-and-Reports/Medicare-Provider-Charge-Data/Hospice.  
+
+2. “Legacy Medicare Provider Utilization and Payment Data: Hospice Providers.” CMS, https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-Trends-and-Reports/Medicare-Provider-Charge-Data/Hospice.  
+
+3. “National Medicaid & CHIP Program Information.” Medicaid.gov, https://www.medicaid.gov/medicaid/program-information/.  
+
+4. Verma, Seema. RE: Medicare Program; FY 2020 Hospice Wage Index and Payment Rate Update and Hospice Quality Reporting Requirements [CMS-1714-P] . American Academy of Hospice and Palliative Medicine, 18 June 2019, http://aahpm.org/uploads/advocacy/AAHPM_Comments-CMS-1714-P_FY20_Hospice_Wage_Index__Quality_Reporting_06-18-19.pdf.  
+
+
+\newpage
+## Shiny App 
+
+
+
+
+```{r}
+library(shiny)
+library(shinythemes)
+library(tidyverse)
+library(forcats)
+library(dslabs)
+
+dat <- read.csv("finaldata.csv") 
+datfinal <- dat %>% filter(dat$"totaldays" > 0 & dat$"totaldays" < 100000)
+
+histvariables <- c("rated9_10",
+                   "recommend_definitely",
+                   "pain_always",
+                   "training_definitely",
+                   "communicated_always",
+                   "respect_always",
+                   "helped_always",
+                   "emotionalsupport",
+                   "total_medicare_payment",
+                   "total_medicare_standard_payment",
+                   "total_charge",
+                   "medicare_return_rate",
+                   "medicare_payment_pbeneday",
+                   "medicare_standard_payment_pbeneday",
+                   "charge_pbeneday",
+                   "totaldays",
+                   "total_live_discharges",
+                   "discharges_pbeneday",
+                   "age",
+                   "male_pct",
+                   "advantage_pct",
+                   "medicaid_pct",
+                   "benefgr180days_pct",
+                   "benefgr60days_pct",
+                   "benefls7days_pct",
+                   "calcavglos",
+                   "cancer_pct",
+                   "dementia_pct",
+                   "stroke_pct",
+                   "heart_pct",
+                   "resp_pct",
+                   "otherdx_pct",
+                   "home_health_pct",
+                   "snf_pct",
+                   "social_services_pct",
+                   "site_home_pct",
+                   "site_alf_pct",
+                   "site_nonsnf_pct",
+                   "site_snf_pct",
+                   "site_inpthospital_pct",
+                   "site_inpthospice_pct"
+)
+
+canc <- datfinal %>% filter(cancer_pct != "NA")
+stro <- datfinal %>% filter(stroke_pct != "NA")
+deme <- datfinal %>% filter(dementia_pct != "NA")
+hear <- datfinal %>% filter(heart_pct != "NA")
+reps <- datfinal %>% filter(resp_pct != "NA")
+othe <- datfinal %>% filter(otherdx_pct != "NA")
+
+ui <- fluidPage(theme = shinythemes::shinytheme("journal"),
+                
+                #HEADING
+                titlePanel("Shiny App for BST 260 Final Project -- Predicting Hospice Performance"),
+                p("The data used was created using data available from", a("Medicare Hospice Compare", href="https://www.medicare.gov/index")),
+                
+                tabsetPanel(
+                  
+                  #TAB 1: DEMOGRAPHIC
+                  tabPanel("Demographic Data",
+                           fluidRow(
+                             column(8,
+                                    plotOutput("sexL")
+                             )
+                           ),
+                           fluidRow(
+                             column(12, p("___________________________________________________________________________________________________________________"))
+                           ),
+                           fluidRow(
+                             column(2,
+                                    plotOutput("cancerP")
+                             ),
+                             column(2,
+                                    plotOutput("strokeP")
+                             ),
+                             column(2,
+                                    plotOutput("dementiaP")
+                             ),
+                             column(2,
+                                    plotOutput("heartP")
+                             ),
+                             column(2,
+                                    plotOutput("respP")
+                             ),
+                             column(2,
+                                    plotOutput("otherP")
+                             )
+                           ),
+                           fluidRow(
+                             column(12, p("___________________________________________________________________________________________________________________"))
+                           ),
+                           fluidRow(
+                             column(8,
+                                    plotOutput("daysVregion")
+                             )
+                           )
+                  ),
+                  #TAB 2 QUALITY
+                  tabPanel("Hospice Quality Data Analysis",
+                           fluidRow(
+                             column(4,
+                                    selectInput(inputId = "qregion",
+                                                label = "Select a Region:",
+                                                choices = unique(c(as.character(datfinal$region))),
+                                                selected = "ne"), 
+                                    
+                             )),
+                           fluidRow(
+                             column(8,
+                                    plotOutput("ratingVdischarge")
+                             )
+                           )),
+                  
+                  #TAB 3: DISCHARGE
+                  tabPanel("Hospice Discharge Data Analysis",
+                           
+                           fluidRow(
+                             column(4,
+                                    selectInput(inputId = "dregion",
+                                                label = "Select a Region:",
+                                                choices = unique(c(as.character(datfinal$region))),
+                                                selected = "ne")
+                             )
+                           ),
+                           fluidRow(
+                             column(8,
+                                    plotOutput("dischargeVcancer"))
+                           )
+                  ),
+                  #TAB 4: PAYMENT
+                  tabPanel("Payment per Beneficiary-Day Data Analysis",
+                           fluidRow(
+                             column(4,
+                                    selectInput(inputId = "pregion",
+                                                label = "Select a Region:",
+                                                choices = unique(c(as.character(datfinal$region))),
+                                                selected = "ne")
+                             )
+                           ),
+                           fluidRow(
+                             column(8,
+                                    plotOutput("paymentVhome"))
+                           )
+                  ),
+                  #TAB 5: HISTOGRAM
+                  tabPanel("Histograms",
+                           fluidRow(
+                             column(4,
+                                    selectInput(inputId = "histvar",
+                                                label = "Select a Variable:",
+                                                choices = as.list(histvariables))
+                             )
+                           ),
+                           fluidRow(
+                             column(8,
+                                    plotOutput("varhist"))
+                           )
+                  )
+                ))
+
+server <- function(input, output) {
+  
+  #OUTPUT 1: DEMOGRAPHIC
+  
+  ##Sex
+  output$sexL <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = male, y = female)) +
+      geom_point(alpha = 0.2) +
+      geom_abline(intercept = 0, slope = 1, col = "red") +
+      
+      ggtitle(paste("Sex Comparison")) + 
+      theme(plot.title = element_text(size = 19, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  ##Cancer
+  output$cancerP <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = cancer_pct)) +
+      geom_histogram(alpha = 0.2) +
+      geom_vline(xintercept = mean(canc$cancer_pct), col = "red") +
+      ggtitle(paste("% Cancer Diagnosis")) + 
+      theme(plot.title = element_text(size = 10, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  ##Stroke
+  output$strokeP <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = stroke_pct)) +
+      geom_histogram(alpha = 0.2) +
+      geom_vline(xintercept = mean(stro$stroke_pct), col = "red") +
+      ggtitle(paste("% Stroke Diagnosis")) + 
+      theme(plot.title = element_text(size = 10, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  ##Dementia
+  output$dementiaP <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = dementia_pct)) +
+      geom_histogram(alpha = 0.2) +
+      geom_vline(xintercept = mean(deme$dementia_pct), col = "red") +
+      ggtitle(paste("% Dementia Diagnosis")) + 
+      theme(plot.title = element_text(size = 10, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  ##Heart Dz
+  output$heartP <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = heart_pct)) +
+      geom_histogram(alpha = 0.2) +
+      geom_vline(xintercept = mean(hear$heart_pct), col = "red") +
+      ggtitle(paste("% Heart Disease Diagnosis")) + 
+      theme(plot.title = element_text(size = 10, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  ##Respiratory Dz
+  output$respP <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = resp_pct)) +
+      geom_histogram(alpha = 0.2) +
+      geom_vline(xintercept = mean(reps$resp_pct), col = "red") +
+      ggtitle(paste("% Respiratory Disease Diagnosis")) + 
+      theme(plot.title = element_text(size = 10, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  ##Other Dx
+  output$otherP <- renderPlot({
+    datfinal %>%
+      ggplot(aes(x = otherdx_pct)) +
+      geom_histogram(alpha = 0.2) +
+      geom_vline(xintercept = mean(othe$otherdx_pct), col = "red") +
+      ggtitle(paste("% Other Diagnosis")) + 
+      theme(plot.title = element_text(size = 10, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 13, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  ##Days v Region    
+  output$daysVregion <- renderPlot({
+    datfinal %>%
+      ggplot(aes(region, totaldays)) +
+      geom_jitter(width = 0.1, alpha = 0.2) +
+      xlab("Region") +
+      ylab("Total Days") +
+      scale_y_discrete(limits = c(0,50000)) +
+      ggtitle(paste("Total Days vs. Region")) + 
+      theme(plot.title = element_text(size = 19, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 17, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  #OUTPUT 2: QUALITY
+  output$ratingVdischarge <- renderPlot({
+    datfinal %>%
+      filter(region == input$qregion) %>%
+      ggplot() +
+      geom_boxplot(aes(x = total_live_discharges, y = rated9_10, group = total_live_discharges)) +
+      xlab("Total Live Discharges") +
+      scale_x_continuous() +
+      ylab("Percent Overall Rating 9+/10") +
+      ggtitle(paste("Overall Hospice rating vs. Total Live Discharges for Region",input$qregion)) + 
+      theme(plot.title = element_text(size = 19, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 17, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  #OUTPUT 3: DISCHARGE
+  output$dischargeVcancer <- renderPlot({
+    datfinal %>%
+      filter(region == input$dregion) %>%
+      ggplot() +
+      geom_line(aes(x = cancer_pct, y = total_live_discharges)) +
+      xlab("Percent Cancer") +
+      scale_x_continuous() +
+      ylab("Total Live Discharges") +
+      ggtitle(paste("Total Live Discharges vs. % Beneficiaries with Cancer for Region",input$dregion)) + 
+      theme(plot.title = element_text(size = 19, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 17, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  #OUTPUT 4: PAYMENT
+  output$paymentVhome <- renderPlot({
+    datfinal %>%
+      filter(region == input$pregion) %>%
+      ggplot() +
+      geom_line(aes(x = home_health_pct, y = discharges_pbeneday)) +
+      xlab("Percent Receiving Home Health Visits") +
+      scale_x_continuous() +
+      ylab("Payment per Beneficiary-Day") +
+      ggtitle(paste("Payment / Beneficiary-Day vs. % Receiving Home Health Visits for Region",input$pregion)) + 
+      theme(plot.title = element_text(size = 19, face = "bold", color = "blue4", hjust=0.3), 
+            axis.title = element_text(size = 17, face = "bold", color = "blue4"),
+            axis.title.x = element_text(vjust=-1),
+            axis.title.y = element_text(vjust=1.5),
+            axis.text = element_text(size = 12.5, color = "blue4"),
+            legend.text = element_text(size = 12.5, color = "blue4"))
+  })
+  
+  #OUTPUT 5: HISTOGRAMS
+  
+  output$varhist <- renderPlot({
+    
+    if(input$histvar == "rated9_10"){data <- datfinal$rated9_10}
+    if(input$histvar == "recommend_definitely"){data <- datfinal$recommend_definitely}
+    if(input$histvar == "pain_always"){data <- datfinal$pain_always}
+    if(input$histvar == "training_definitely"){data <- datfinal$training_definitely}
+    if(input$histvar == "communicated_always"){data <- datfinal$communicated_always}
+    if(input$histvar == "respect_always"){data <- datfinal$respect_always}
+    if(input$histvar == "helped_always"){data <- datfinal$helped_always}
+    if(input$histvar == "emotionalsupport"){data <- datfinal$emotionalsupport}
+    if(input$histvar == "total_medicare_payment"){data <- datfinal$total_medicare_payment}
+    if(input$histvar == "total_medicare_standard_payment"){data <- datfinal$total_medicare_standard_payment}
+    if(input$histvar == "total_charge"){data <- datfinal$total_charge}
+    if(input$histvar == "medicare_return_rate"){data <- datfinal$medicare_return_rate}
+    if(input$histvar == "medicare_payment_pbeneday"){data <- datfinal$medicare_payment_pbeneday}
+    if(input$histvar == "medicare_standard_payment_pbeneday"){data <- datfinal$medicare_standard_payment_pbeneday}
+    if(input$histvar == "charge_pbeneday"){data <- datfinal$charge_pbeneday}
+    if(input$histvar == "totaldays"){data <- datfinal$totaldays}
+    if(input$histvar == "total_live_discharges"){data <- datfinal$total_live_discharges}
+    if(input$histvar == "discharges_pbeneday"){data <- datfinal$discharges_pbeneday}
+    if(input$histvar == "age"){data <- datfinal$age}
+    if(input$histvar == "male_pct"){data <- datfinal$male_pct}
+    if(input$histvar == "advantage_pct"){data <- datfinal$advantage_pct}
+    if(input$histvar == "medicaid_pct"){data <- datfinal$medicaid_pct}
+    if(input$histvar == "benefgr60days_pct"){data <- datfinal$benefgr60days_pct}
+    if(input$histvar == "benefgr180days_pct"){data <- datfinal$benefgr180days_pct }
+    if(input$histvar == "benefls7days_pct"){data <- datfinal$benefls7days_pct}
+    if(input$histvar == "calcavglos"){data <- datfinal$calcavglos}
+    if(input$histvar == "cancer_pct"){data <- datfinal$cancer_pct}
+    if(input$histvar == "dementia_pct"){data <- datfinal$dementia_pct}
+    if(input$histvar == "stroke_pct"){data <- datfinal$stroke_pct}
+    if(input$histvar == "heart_pct"){data <- datfinal$heart_pct}
+    if(input$histvar == "resp_pct"){data <- datfinal$resp_pct}
+    if(input$histvar == "otherdx_pct"){data <- datfinal$otherdx_pct}
+    if(input$histvar == "home_health_pct"){data <- datfinal$home_health_pct}
+    if(input$histvar == "snf_pct"){data <- datfinal$snf_pct}
+    if(input$histvar == "social_services_pct"){data <- datfinal$social_services_pct}
+    if(input$histvar == "site_home_pct"){data <- datfinal$site_home_pct}
+    if(input$histvar == "site_alf_pct"){data <- datfinal$site_alf_pct}
+    if(input$histvar == "site_nonsnf_pct"){data <- datfinal$site_nonsnf_pct}
+    if(input$histvar == "site_snf_pct"){data <- datfinal$site_snf_pct}
+    if(input$histvar == "site_inpthospital_pct"){data <- datfinal$site_inpthospital_pct}
+    if(input$histvar == "site_inpthospice_pct"){data <- datfinal$site_inpthospice_pct}
+    
+    
+    hist(as.numeric(data))
+    
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+
+
+
+
+
+\newpage
+# Code for Data Wrangling
+## Import, Rearrange, and Join
+
+```{r import data, warning=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+
+# Assign paths to original files from local desktop, read in files
+pathtoProvider <- "/Users/timgenovese/Desktop/Code for BST260 Project/ProviderData.xlsx"
+pathtoQuality <- "/Users/timgenovese/Desktop/Code for BST260 Project/QualityData.xlsx"
+
+unedited_Provider <- read_xlsx(pathtoProvider)
+unedited_Quality <- read_xlsx(pathtoQuality)
+```
+
+```{r rearrange quality data}
+# Subset the facility identifier and quality scores from the original quality dataset
+quality_IDScores <- subset(unedited_Quality, 
+                           select=c("CMS Certification Number (CCN)",
+                                                      "Measure Name",
+                                                      "Score"))
+
+# Spread the dataframe containing only scores and identifiers
+spread_QualityScores <- spread(quality_IDScores, 
+                         key = "CMS Certification Number (CCN)", 
+                         value = "Score",
+                         drop = TRUE)
+
+# Rotate spread result 90 degrees, move measure names from top row to column titles
+# and identifiers from row titles to first column, drop last column full of n/a values
+header.true <- function(df) {
+  names(df) <- as.character(unlist(df[1,]))
+  df[-1,]
+}
+            
+headflip_Quality <- header.true(data.frame(t(spread_QualityScores[])))
+
+flipped_Quality <- headflip_Quality %>% 
+  rownames_to_column("Provider ID")
+
+edited_Quality <- flipped_Quality[,-25]
+```
+
+```{r join datasets}
+# Create merged dataset with provider and quality data
+merged_data <-merge(x = unedited_Provider,
+                    y = edited_Quality,
+                    by="Provider ID",
+                    all.x=TRUE)
+```
+
+## Quality Control
+
+```{r quality control for missing data}
+# Replace missing values of various forms with "na"
+ast_data <- na_if(merged_data, "*")
+na_data <- na_if(ast_data, "Not Available")
+
+# Idenitfy and drop rows and columns (hospices and variables) with >=35% missing data
+
+# First step, identify and drop hospices reporting less than 35% of data
+HospiceMissingRate <- rowMeans(is.na(na_data))
+hospicecheck_data <- na_data[HospiceMissingRate <= 0.35,]
+
+# Second step, identify and drop measures reported by less than 35% of qc'ed hospices
+MeasureMissingRate <- colMeans(is.na(hospicecheck_data))
+measurecheck_data <- hospicecheck_data[, MeasureMissingRate <= 0.35]
+
+# Filter out hospices recording 0 days (for calculations) and more than 100,000 days 
+qc_data <- measurecheck_data %>%
+  filter(measurecheck_data$"Total Days" > 0 & measurecheck_data$"Total Days" < 100000)
+```
+
+## Variable Cleaning Preparatory to Analysis
+
+```{r rename and generate variables for analysis}
+# Rename variables 
+renamed_data <- setNames(qc_data, c("ID",
+                                           "name",
+                                           "address",
+                                           "city",
+                                           "state",
+                                           "zip",
+                                           "county",
+                                           "beneficiaries",
+                                           "totaldays",
+                                           "total_medicare_payment",
+                                           "total_medicare_standard_payment",
+                                           "total_charge",
+                                           "percent_home_health",
+                                           "physician_services",
+                                           "home_health_pday",
+                                           "snf_pday",
+                                           "social_service_pday",
+                                           "total_live_discharges",
+                                           "benefls7days",
+                                           "benefgr60days",
+                                           "benefgr180days",
+                                           "home_health_pday_wkppd",
+                                           "snf_pday_wkppd",
+                                           "social_service_pday_wkppd",
+                                           "age",
+                                           "male",
+                                           "female",
+                                           "white",
+                                           "advantage",
+                                           "medicaid",
+                                           "cancer",
+                                           "dementia",
+                                           "stroke",
+                                           "heart",
+                                           "resp",
+                                           "otherdx",
+                                           "site_home",
+                                           "site_alf",
+                                           "site_nonsnf",
+                                           "site_snf",
+                                           "site_inpthospital",
+                                           "site_inpthospice",
+                                    "rated6_",
+                                    "rated7_8",
+                                    "rated9_10",
+                                    "recommend_not",
+                                    "communicated_always",
+                                    "helped_always",
+                                    "respect_always",
+                                    "emotionalsupport_not",
+                                    "emotionalsupport",
+                                    "communicated_not",
+                                    "helped_not",
+                                    "respect_not",
+                                    "communicated_usually",
+                                    "helped_usually",
+                                    "respect_usually",
+                                    "pain_always",
+                                    "pain_not",
+                                    "pain_usually",
+                                    "training_definitely",
+                                    "training_not",
+                                    "training_somewhat",
+                                    "recommend_definitely",
+                                    "recommend_probably"))
+
+# Convert measures to numeric objects
+datfinal <- renamed_data                               
+datfinal$"total_medicare_payment" <- as.numeric(as.character(datfinal$"total_medicare_payment"))
+datfinal$"totaldays" <- as.numeric(as.character(datfinal$"totaldays"))
+datfinal$"total_medicare_standard_payment" <- as.numeric(as.character(datfinal$"total_medicare_standard_payment"))
+datfinal$"total_charge" <- as.numeric(as.character(datfinal$"total_charge"))
+datfinal$"percent_home_health" <- as.numeric(as.character(datfinal$ "percent_home_health"))
+datfinal$"physician_services" <- as.numeric(as.character(datfinal$"physician_services"))
+datfinal$"home_health_pday" <- as.numeric(as.character(datfinal$"home_health_pday"))
+datfinal$"snf_pday" <- as.numeric(as.character(datfinal$"snf_pday"))
+datfinal$"social_service_pday" <- as.numeric(as.character(datfinal$"social_service_pday"))
+datfinal$"total_live_discharges" <- as.numeric(as.character(datfinal$"total_live_discharges"))
+datfinal$"benefls7days" <- as.numeric(as.character(datfinal$"benefls7days"))
+datfinal$"benefgr60days" <- as.numeric(as.character(datfinal$"benefgr60days"))
+datfinal$"benefgr180days" <- as.numeric(as.character(datfinal$"benefgr180days"))
+datfinal$"home_health_pday_wkppd" <- as.numeric(as.character(datfinal$"home_health_pday_wkppd"))
+datfinal$"snf_pday_wkppd" <- as.numeric(as.character(datfinal$"snf_pday_wkppd"))
+datfinal$"social_service_pday_wkppd" <- as.numeric(as.character(datfinal$"social_service_pday_wkppd")) 
+datfinal$"age" <- as.numeric(as.character(datfinal$"age"))
+datfinal$"male" <- as.numeric(as.character(datfinal$"male"))
+datfinal$"female" <- as.numeric(as.character(datfinal$"female"))
+datfinal$"white" <- as.numeric(as.character(datfinal$"white"))
+datfinal$"advantage" <- as.numeric(as.character(datfinal$"advantage"))
+datfinal$"medicaid" <- as.numeric(as.character(datfinal$"medicaid"))
+datfinal$"cancer" <- as.numeric(as.character(datfinal$"cancer"))
+datfinal$"dementia" <- as.numeric(as.character(datfinal$"dementia"))
+datfinal$"stroke" <- as.numeric(as.character(datfinal$"stroke"))
+datfinal$"heart" <- as.numeric(as.character(datfinal$"heart"))
+datfinal$"resp" <- as.numeric(as.character(datfinal$"resp"))
+datfinal$"otherdx" <- as.numeric(as.character(datfinal$"otherdx"))
+datfinal$"site_home" <- as.numeric(as.character(datfinal$"site_home"))
+datfinal$"site_alf" <- as.numeric(as.character(datfinal$"site_alf"))
+datfinal$"site_nonsnf" <- as.numeric(as.character(datfinal$"site_nonsnf"))
+datfinal$"site_snf" <- as.numeric(as.character(datfinal$"site_snf"))
+datfinal$"site_inpthospital" <- as.numeric(as.character(datfinal$"site_inpthospital"))
+datfinal$"site_inpthospice" <- as.numeric(as.character(datfinal$"site_inpthospice"))
+datfinal$"rated6_" <- as.numeric(as.character(datfinal$"rated6_"))
+datfinal$"rated7_8" <- as.numeric(as.character(datfinal$"rated7_8"))
+datfinal$"rated9_10" <- as.numeric(as.character(datfinal$"rated9_10"))
+datfinal$"recommend_not" <- as.numeric(as.character(datfinal$"recommend_not")) 
+datfinal$"communicated_always" <- as.numeric(as.character(datfinal$"communicated_always"))
+datfinal$"helped_always" <- as.numeric(as.character(datfinal$"helped_always"))
+datfinal$"respect_always" <- as.numeric(as.character(datfinal$"respect_always"))
+datfinal$"emotionalsupport_not" <- as.numeric(as.character(datfinal$"emotionalsupport_not"))
+datfinal$"emotionalsupport" <- as.numeric(as.character(datfinal$"emotionalsupport"))
+datfinal$"communicated_not" <- as.numeric(as.character(datfinal$"communicated_not"))
+datfinal$"helped_not" <- as.numeric(as.character(datfinal$"helped_not"))
+datfinal$"respect_not" <- as.numeric(as.character(datfinal$"respect_not"))
+datfinal$"communicated_usually" <- as.numeric(as.character(datfinal$"communicated_usually"))
+datfinal$"helped_usually" <- as.numeric(as.character(datfinal$"helped_usually"))
+datfinal$"respect_usually" <- as.numeric(as.character(datfinal$"respect_usually"))
+datfinal$"pain_always" <- as.numeric(as.character(datfinal$"pain_always"))
+datfinal$"pain_not" <- as.numeric(as.character(datfinal$"pain_not"))
+datfinal$"pain_usually" <- as.numeric(as.character(datfinal$"pain_usually"))
+datfinal$"training_definitely" <- as.numeric(as.character(datfinal$"training_definitely"))
+datfinal$"training_not" <- as.numeric(as.character(datfinal$"training_not"))
+datfinal$"training_somewhat" <- as.numeric(as.character(datfinal$"training_somewhat"))
+datfinal$"recommend_definitely" <- as.numeric(as.character(datfinal$"recommend_definitely"))
+datfinal$"recommend_probably" <- as.numeric(as.character(datfinal$"recommend_probably")) 
+
+# Add region variable and region indicators
+datfinal <- datfinal %>% mutate(region=
+                                  ifelse(state %in%  c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA"), "ne", 
+                              ifelse(state %in% c("IL", "IN", "MI", "OH", "WI", "IA", "KS", "MN", "MO", "NE", "ND", "SD"), "mw", 
+                              ifelse(state %in% c("DE", "FL", "GA", "MD", "NC", "SC", "VA", "DC", "WV", "AL", "AR", "KY", "MS", "TN", "LA", "OK", "TX"), "south", 
+                              ifelse(state %in% c("AZ", "CO", "ID", "MT", "NV", "NM", "UT", "WY", "AK", "CA", "HI", "OR", "WA"), "west", 
+                              "other")))))
+datfinal$regionne  <- ifelse(datfinal$state %in% c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA"), 1, 0)
+datfinal$regionmw  <- ifelse(datfinal$state %in% c("IL", "IN", "MI", "OH", "WI", "IA", "KS", "MN", "MO", "NE", "ND", "SD"), 1, 0)
+datfinal$regionsouth  <- ifelse(datfinal$state %in% c("DE", "FL", "GA", "MD", "NC", "SC", "VA", "DC", "WV", "AL", "AR", "KY", "MS", "TN", "LA", "OK", "TX"), 1, 0)
+datfinal$regionwest  <- ifelse(datfinal$state %in% c("AZ", "CO", "ID", "MT", "NV", "NM", "UT", "WY", "AK", "CA", "HI", "OR", "WA"), 1, 0)
+
+# Add binary variable: whether or not hospice state had participated in medicaid expansion by 2016 (year of survey)
+# Source: Medicaid.Gov "Medicaid Expansion State Map as of July 2016"
+datfinal$expansionstate <- 0 
+ExpandedState = c("AK", "HI", "CA", "WA", "OR", "NV", "AZ", "NM", "CO", "MT", "ND", "MN",
+                  "IA", "AR", "LA", "MI", "IL", "IN", "OH", "KY", "WV", "PA", "DC", "MD",
+                  "DE", "NJ", "NY", "CT", "RI", "MA", "VT", "NH")
+datfinal$expansionstate <- ifelse(datfinal$state %in% ExpandedState, 1, 0)
+
+# Compute new variables 
+datfinal$"medicare_payment_pbene" = datfinal$"total_medicare_payment"/datfinal$"beneficiaries"
+datfinal$"medicare_standard_payment_pbene" = datfinal$"total_medicare_standard_payment"/datfinal$"beneficiaries"
+datfinal$"charge_pbene" = datfinal$"total_charge"/datfinal$"beneficiaries"
+
+datfinal$"medicare_payment_pbeneday" = datfinal$"total_medicare_payment"/datfinal$"totaldays"
+datfinal$"medicare_standard_payment_pbeneday" = datfinal$"total_medicare_standard_payment"/datfinal$"totaldays"
+datfinal$"charge_pbeneday" = datfinal$"total_charge"/datfinal$"totaldays"
+
+datfinal$"medicare_return_rate" = datfinal$"total_medicare_payment"/datfinal$"total_charge"
+datfinal$"discharges_pbeneday" = datfinal$"total_live_discharges"/datfinal$"totaldays"*1000
+
+datfinal$"benefgr180days_pct" = datfinal$"benefgr180days"/datfinal$"beneficiaries"
+datfinal$"benefgr60days_pct" = datfinal$"benefgr60days"/datfinal$"beneficiaries"
+datfinal$"benefls7days_pct" = datfinal$"benefls7days"/datfinal$"beneficiaries"
+datfinal$"calcavglos" = datfinal$"totaldays"/datfinal$"beneficiaries"
+
+datfinal$totaldx <- datfinal$"cancer"+datfinal$"stroke"+datfinal$"dementia"+datfinal$"heart"+datfinal$"resp"+datfinal$"otherdx"
+datfinal$cancer_pct = datfinal$cancer/datfinal$"beneficiaries"
+datfinal$stroke_pct = datfinal$stroke/datfinal$"beneficiaries"
+datfinal$dementia_pct = datfinal$dementia/datfinal$"beneficiaries"
+datfinal$heart_pct = datfinal$heart/datfinal$"beneficiaries"
+datfinal$resp_pct = datfinal$resp/datfinal$"beneficiaries"
+datfinal$otherdx_pct = datfinal$otherdx/datfinal$"beneficiaries"
+
+datfinal$male_pct = datfinal$male/datfinal$"beneficiaries"
+datfinal$female_pct = datfinal$female/datfinal$"beneficiaries"
+
+datfinal$advantage_pct = datfinal$advantage/datfinal$"beneficiaries"
+datfinal$medicaid_pct = datfinal$medicaid/datfinal$"beneficiaries"
+
+datfinal$hourssetting <- datfinal$"home_health_pday"+datfinal$"snf_pday"+datfinal$"social_service_pday"
+datfinal$home_health_pct = datfinal$"home_health_pday"/datfinal$hourssetting
+datfinal$snf_pct = datfinal$"snf_pday"/datfinal$hourssetting
+datfinal$social_services_pct =datfinal$"social_service_pday"/datfinal$hourssetting
+
+datfinal$majoritysetting <- datfinal$"site_home"+datfinal$"site_alf"+datfinal$"site_nonsnf"+datfinal$"site_snf"+datfinal$"site_inpthospital"+datfinal$"site_inpthospice"
+datfinal$"site_home_pct" = datfinal$"site_home"/datfinal$"beneficiaries"
+datfinal$"site_alf_pct" = datfinal$"site_alf"/datfinal$"beneficiaries"
+datfinal$"site_nonsnf_pct" = datfinal$"site_nonsnf"/datfinal$"beneficiaries"
+datfinal$"site_snf_pct" = datfinal$"site_snf"/datfinal$"beneficiaries"
+datfinal$"site_inpthospital_pct" = datfinal$"site_inpthospital"/datfinal$"beneficiaries"
+datfinal$"site_inpthospice_pct" = datfinal$"site_inpthospice"/datfinal$"beneficiaries"
+
+```
+
+```{r save output file}
+# Save output of data on desktop as mergedresult.csv
+write.csv(datfinal, "finaldata.csv")
+```
+
+### Option to start analyses from final data file
+
+```{r option to start with final data, eval=FALSE}
+datfinal <- read.csv("/Users/timgenovese/Desktop/Code for BST260 Project/finaldata.csv")
+```
+
+\newpage
+# Code and Outputs for Data Analyses
+
+## Histograms and Correlation Martrix for Exploratory Analysis
+
+### Sample graph/models were selected from all those inspected in the exploratory analysis
+
+```{r histograms for data quality, warning=FALSE, message=FALSE}
+# how Vitas Health outlier for totaldays
+measurecheck_data %>%
+  ggplot(aes(measurecheck_data$"Total Days")) + 
+  geom_histogram()
+
+# Proportion of beneficiaries with a recorded primary diagnosis, by hospice
+datfinal %>%
+  ggplot(aes(datfinal$totaldx/datfinal$"beneficiaries")) + 
+  geom_histogram()
+
+# Proportion of beneficiaries with a recorded sex, by hospice
+datfinal %>%
+  ggplot(aes((datfinal$"female"+datfinal$"male")/datfinal$"beneficiaries")) + 
+  geom_histogram()
+```
+
+```{r sample histograms for data exploration, warning=FALSE, message=FALSE}
+# Quality Measures
+datfinal %>%
+  ggplot(aes(datfinal$"recommend_definitely")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"emotionalsupport")) + 
+  geom_histogram()
+
+# Financial Measures - Total
+datfinal %>%
+  ggplot(aes(datfinal$"total_medicare_payment")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"total_charge")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"medicare_return_rate")) + 
+  geom_histogram()
+
+# Financial Measures - Per Beneficiary-Day
+datfinal %>%
+  ggplot(aes(datfinal$"medicare_payment_pbeneday")) + 
+  geom_histogram()
+
+# Size
+datfinal %>%
+  ggplot(aes(datfinal$"totaldays")) + 
+  geom_histogram()
+
+# Diagnosis
+datfinal %>%
+  ggplot(aes(datfinal$"cancer_pct")) + 
+  geom_histogram()
+
+# Length of Stay
+datfinal %>%
+  ggplot(aes(datfinal$"calcavglos")) + 
+  geom_histogram()
+```
+
+```{r more complete list of histograms for data exploration, warning=FALSE, message=FALSE, fig.show='hide'}
+# Exploratory analyses with hidden outputs
+
+# Quality Measures
+datfinal %>%
+  ggplot(aes(datfinal$"rated9_10")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"recommend_definitely")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"pain_always")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"training_definitely")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"communicated_always")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"respect_always")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"helped_always")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"emotionalsupport")) + 
+  geom_histogram()
+
+# Financial Measures - Total
+datfinal %>%
+  ggplot(aes(datfinal$"total_medicare_payment")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"total_medicare_standard_payment")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"total_charge")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"medicare_return_rate")) + 
+  geom_histogram()
+
+# Financial Measures - Per Beneficiary-Day
+datfinal %>%
+  ggplot(aes(datfinal$"medicare_payment_pbeneday")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"medicare_standard_payment_pbeneday")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"charge_pbeneday")) + 
+  geom_histogram()
+
+# Size Measures
+datfinal %>%
+  ggplot(aes(datfinal$"totaldays")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"total_live_discharges")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"discharges_pbeneday")) + 
+  geom_histogram()
+
+# Demographic
+datfinal %>%
+  ggplot(aes(datfinal$"age")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"male_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"advantage_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"medicaid_pct")) + 
+  geom_histogram()
+
+# Length of Stay
+datfinal %>%
+  ggplot(aes(datfinal$"benefgr180days_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"benefgr60days_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"benefls7days_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"calcavglos")) + 
+  geom_histogram()
+
+# Diagnosis
+datfinal %>%
+  ggplot(aes(datfinal$"cancer_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"dementia_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"stroke_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"heart_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"resp_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"otherdx_pct")) + 
+  geom_histogram()
+
+# Care Setting - Hours per setting per day
+datfinal %>%
+  ggplot(aes(datfinal$"home_health_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"snf_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"social_services_pct")) + 
+  geom_histogram()
+
+# Care Setting - Percentage majority setting
+datfinal %>%
+  ggplot(aes(datfinal$"site_home_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"site_alf_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"site_nonsnf_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"site_snf_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"site_inpthospital_pct")) + 
+  geom_histogram()
+
+datfinal %>%
+  ggplot(aes(datfinal$"site_inpthospice_pct")) + 
+  geom_histogram()
+```
+
+```{r code for exploratory correlation between quality outcomes}
+cor(datfinal[,45:65], use = "complete.obs")
+```
+
+## "Kitchen Sink" Exploratory Regression Analyses
+
+### Sample graph/models were selected from all those inspected in the exploratory analysis
+
+```{r warning=FALSE}
+library(jtools)
+library(kableExtra)
+```
+
+```{r code for exploratory kitchen sink regression analyses}
+# Rating (9+/10)
+ratingmodel <- lm(rated9_10 ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(ratingmodel)
+confint(ratingmodel, level=0.95)
+
+# Live Discharges (per beneficiary)
+dischargemodel <- lm(discharges_pbeneday ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(dischargemodel)
+confint(dischargemodel, level=0.95)
+```
+
+```{r additional exploratory kitchen sink models results hidden, results='hide'}
+# Exploratory analyses with hidden outputs
+
+# Recommend (Definitely)
+recommendmodel <- lm(recommend_definitely ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate +  
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(recommendmodel) 
+confint(recommendmodel, level=0.95)
+
+# Pain/Sx Control (Always)
+painmodel <- lm(pain_always ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate +  
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(painmodel)
+confint(recommendmodel, level=0.95)
+
+# Training (Definitely)
+trainingmodel <- lm(training_definitely ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(trainingmodel) 
+confint(trainingmodel, level=0.95)
+
+# Communicated (Always)
+communicatedmodel <- lm(communicated_always ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(communicatedmodel)
+confint(communicatedmodel, level=0.95)
+
+# Respect (Always)
+respectmodel <- lm(respect_always ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(respectmodel)
+confint(respectmodel, level=0.95)
+
+# Helped (Always)
+helpedmodel <- lm(helped_always ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(helpedmodel)
+confint(helpedmodel, level=0.95)
+
+# Emotional Support
+emotionsupportmodel <- lm(emotionalsupport ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(emotionsupportmodel)
+confint(emotionsupportmodel, level=0.95)
+
+# Multivariate
+multimodel <- lm(rated9_10 + recommend_definitely + pain_always + training_definitely + communicated_always + helped_always + respect_always + emotionalsupport ~ age + male_pct + region +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + benefgr60days_pct + benefgr180days_pct + calcavglos +
+                    home_health_pday_wkppd + snf_pday_wkppd + social_service_pday_wkppd +
+                    site_home_pct + site_alf_pct + site_nonsnf_pct + site_snf_pct + site_inpthospice_pct + site_inpthospital_pct + 
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(multimodel)
+confint(multimodel, level=0.95)
+```
+
+\newpage
+## Final Regression Analyses
+
+```{r regression final analyses}
+# Medicare Payment per Beneficiary-Day
+paymentmodel <- lm(medicare_payment_pbene  ~  age + male_pct + 
+                    advantage_pct + medicaid_pct + expansionstate +
+                    calcavglos + home_health_pct + snf_pct + 
+                    stroke_pct + dementia_pct +  resp_pct, 
+                  data=datfinal)
+
+summary(paymentmodel)
+plot(paymentmodel)
+kable(summary(paymentmodel)$coef)
+summ(paymentmodel)
+confint(paymentmodel, level = 0.95)
+
+# Medicare Return Rate
+returnmodel <- lm(medicare_return_rate  ~   age + male_pct + 
+                    advantage_pct + medicaid_pct + expansionstate +
+                    calcavglos + home_health_pct + snf_pct + 
+                    stroke_pct + dementia_pct +  resp_pct,  
+                  data=datfinal)
+
+summary(returnmodel)
+plot(returnmodel)
+
+1
+1
+1
+1
+1
+kable(summary(returnmodel)$coef)
+summ(returnmodel)
+confint(returnmodel, level = 0.95)
+
+# Rating (9+/10)
+ratingmodel <- lm(rated9_10 ~  age + male_pct + 
+                    advantage_pct + medicaid_pct + expansionstate +
+                    calcavglos +  benefls7days_pct + 
+                    home_health_pday_wkppd + social_service_pday_wkppd +
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(ratingmodel)
+plot(ratingmodel)  
+kable(summary(ratingmodel)$coef)
+summ(ratingmodel)
+confint(ratingmodel, level=0.95)
+
+# Pain/Sx Control (Always)
+painmodel <- lm(pain_always ~ age + male_pct +
+                    advantage_pct + medicaid_pct + expansionstate +
+                    calcavglos +  benefls7days_pct + 
+                    home_health_pday_wkppd + social_service_pday_wkppd +
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(painmodel)
+plot(painmodel)  
+kable(summary(painmodel)$coef)
+summ(painmodel)
+confint(painmodel, level=0.95)
+
+# Emotional Support
+emotionsupportmodel <- lm(emotionalsupport ~  age + male_pct +
+                    advantage_pct + medicaid_pct + expansionstate +
+                    calcavglos +  benefls7days_pct + 
+                    home_health_pday_wkppd + social_service_pday_wkppd +
+                    cancer_pct + stroke_pct + dementia_pct + heart_pct + resp_pct, 
+                  data=datfinal)
+
+summary(emotionsupportmodel)
+plot(emotionsupportmodel)  
+kable(summary(emotionsupportmodel)$coef)
+summ(emotionsupportmodel)
+confint(emotionsupportmodel, level=0.95)
+
+# Live Discharges (per beneficiary)
+dischargemodel <- lm(discharges_pbeneday ~ age + male_pct + regionmw + regionsouth +
+                    advantage_pct + medicaid_pct + medicare_return_rate + expansionstate + 
+                    benefls7days_pct + calcavglos + 
+                    social_service_pday_wkppd +
+                    cancer_pct, 
+                  data=datfinal)
+
+summary(dischargemodel)
+plot(dischargemodel)  
+kable(summary(dischargemodel)$coef)
+summ(dischargemodel)
+confint(dischargemodel, level=0.95)
+```
+
+```{r}
+summ(paymentmodel)
+summ(returnmodel)
+summ(dischargemodel)
+summ(ratingmodel)
+summ(painmodel)
+summ(emotionsupportmodel)
+```
